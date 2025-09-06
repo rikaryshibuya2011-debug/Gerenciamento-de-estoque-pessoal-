@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Controle de Estoque Pessoal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="logo.png" />
+</head>
+<body class="bg-gradient-to-r from-blue-50 via-blue-100 to-blue-50 min-h-screen p-6 font-sans">
+
+  <!-- Logo -->
+  <img src="logo.png" alt="Logo" class="fixed top-4 right-4 w-16 h-16 rounded-full shadow-xl z-50 hover:scale-110 transition-transform duration-300">
+
+  <div class="max-w-7xl mx-auto bg-white shadow-2xl rounded-3xl p-8 space-y-10">
+
+    <!-- Cabeçalho -->
+    <h1 class="text-4xl md:text-5xl font-extrabold text-center text-blue-700 flex items-center justify-center gap-3 drop-shadow-md">
+      📦 Controle de Estoque Pessoal
+    </h1>
+
+    <!-- Formulário -->
+    <div class="bg-gradient-to-r from-blue-50 to-white border border-blue-200 rounded-3xl p-6 space-y-4 shadow-lg hover:shadow-2xl transition-shadow duration-300">
+      <h2 class="text-xl font-semibold text-blue-700 mb-4 tracking-wide">➕ Adicionar Produto</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4">
+        <input id="nomeProduto" class="border p-3 rounded-2xl focus:ring-2 focus:ring-blue-400" type="text" placeholder="Nome do Produto" />
+        <input id="quantidadeProduto" class="border p-3 rounded-2xl focus:ring-2 focus:ring-blue-400" type="number" placeholder="Quantidade" />
+        <select id="unidadeProduto" class="border p-3 rounded-2xl focus:ring-2 focus:ring-blue-400">
+          <option value="un">Unidade (un)</option>
+          <option value="cx">Caixa (cx)</option>
+        </select>
+        <input id="valorMedida" class="border p-3 rounded-2xl focus:ring-2 focus:ring-blue-400" type="number" placeholder="Peso/Volume" />
+        <select id="tipoMedida" class="border p-3 rounded-2xl focus:ring-2 focus:ring-blue-400">
+          <option value="">Nenhum</option>
+          <option value="kg">Kg</option>
+          <option value="g">Gramas (g)</option>
+          <option value="l">Litros (L)</option>
+          <option value="ml">Mililitros (ml)</option>
+        </select>
+        <input id="categoriaProduto" class="border p-3 rounded-2xl focus:ring-2 focus:ring-blue-400" type="text" placeholder="Categoria" />
+        <input id="dataProduto" class="border p-3 rounded-2xl focus:ring-2 focus:ring-blue-400" type="date" />
+      </div>
+      <button onclick="salvarProduto()" class="bg-blue-600 text-white rounded-2xl px-8 py-3 hover:bg-blue-700 shadow-md hover:shadow-lg transition duration-300 font-semibold w-full md:w-auto flex justify-center items-center gap-2">
+        💾 Salvar Produto
+      </button>
+    </div>
+
+    <!-- Busca -->
+    <input id="campoBusca" class="w-full border p-3 rounded-2xl shadow-md focus:ring-2 focus:ring-blue-400 placeholder:text-gray-400 mb-4" placeholder="🔍 Buscar por produto ou categoria..." oninput="filtrarProdutos()" />
+
+    <!-- Mensagem -->
+    <div id="mensagem" class="hidden text-center p-3 rounded-2xl font-medium text-lg"></div>
+
+    <!-- Tabela -->
+    <div class="overflow-x-auto border rounded-3xl shadow-xl hover:shadow-2xl transition-shadow duration-300">
+      <table id="tabelaProdutos" class="w-full mt-4 text-sm md:text-base text-left border-collapse">
+        <thead class="bg-blue-100 text-blue-700 sticky top-0 text-lg font-semibold">
+          <tr>
+            <th class="cursor-pointer p-3" onclick="ordenarPor('nome')">Produto ⬍</th>
+            <th class="cursor-pointer p-3" onclick="ordenarPor('quantidade')">Qtd ⬍</th>
+            <th class="p-3">Unidade</th>
+            <th class="p-3">Medida</th>
+            <th class="p-3">Categoria</th>
+            <th class="p-3">Data</th>
+            <th class="p-3">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="lista-produtos" class="bg-white divide-y divide-gray-200 text-gray-700 text-base"></tbody>
+      </table>
+    </div>
+
+    <!-- Totais -->
+    <div class="bg-blue-50 border border-blue-200 rounded-3xl p-5 text-right font-semibold text-gray-800 shadow-md hover:shadow-lg transition-shadow duration-300 text-lg">
+      <p id="resumo"></p>
+    </div>
+
+    <!-- Gráfico -->
+    <div class="bg-gradient-to-r from-blue-50 to-white border rounded-3xl p-6 shadow-lg hover:shadow-2xl transition-shadow duration-300">
+      <h2 class="text-xl font-semibold text-blue-700 mb-4 tracking-wide">📊 Gráfico do Estoque (Quantidade por Categoria)</h2>
+      <canvas id="graficoEstoque" height="120"></canvas>
+    </div>
+
+  </div>
+
+  <!-- Modal de Edição -->
+  <div id="modalEdicao" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div id="modalBox" class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl space-y-4 transform scale-90 opacity-0 transition-all duration-300">
+      <h2 class="text-2xl font-bold text-blue-700 mb-4">✏️ Editar Produto</h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4">
+        <input id="editNome" class="border p-3 rounded-2xl" type="text" placeholder="Nome do Produto" />
+        <input id="editQuantidade" class="border p-3 rounded-2xl" type="number" placeholder="Quantidade" />
+        <select id="editUnidade" class="border p-3 rounded-2xl">
+          <option value="un">Unidade (un)</option>
+          <option value="cx">Caixa (cx)</option>
+        </select>
+        <input id="editValorMedida" class="border p-3 rounded-2xl" type="number" placeholder="Peso/Volume" />
+        <select id="editTipoMedida" class="border p-3 rounded-2xl">
+          <option value="">Nenhum</option>
+          <option value="kg">Kg</option>
+          <option value="g">Gramas (g)</option>
+          <option value="l">Litros (L)</option>
+          <option value="ml">Mililitros (ml)</option>
+        </select>
+        <input id="editCategoria" class="border p-3 rounded-2xl" type="text" placeholder="Categoria" />
+        <input id="editData" class="border p-3 rounded-2xl" type="date" />
+      </div>
+
+      <div class="flex justify-end gap-3 pt-4">
+        <button onclick="fecharModal()" class="px-5 py-2 rounded-xl bg-gray-300 hover:bg-gray-400">Cancelar</button>
+        <button onclick="salvarEdicao()" class="px-5 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rodapé -->
+  <footer class="mt-12 text-center text-gray-500 text-sm">
+    © 2025 dev Rafael Sibuya. Todos os direitos reservados
+  </footer>
+
+  <script>
+    let produtos = [];
+    let editIndex = null;
+    let grafico = null;
+    let ordemAtual = { campo: null, asc: true };
+
+    window.onload = () => {
+      const salvos = localStorage.getItem('produtos');
+      if(salvos) produtos = JSON.parse(salvos);
+      renderizarTabela();
+      atualizarGrafico();
+    };
+
+    function mostrarMensagem(texto, tipo="sucesso"){
+      const msg = document.getElementById("mensagem");
+      msg.innerText = texto;
+      msg.className = `mt-4 text-center p-3 rounded-2xl font-medium text-lg ${tipo==="erro"?"bg-red-100 text-red-700":"bg-green-100 text-green-700"}`;
+      msg.classList.remove("hidden");
+      setTimeout(()=>msg.classList.add("hidden"),3000);
+    }
+
+    function salvarProduto(){
+      const nome = document.getElementById('nomeProduto').value.trim();
+      const quantidade = parseFloat(document.getElementById('quantidadeProduto').value);
+      const unidade = document.getElementById('unidadeProduto').value;
+      const valorMedida = document.getElementById('valorMedida').value;
+      const tipoMedida = document.getElementById('tipoMedida').value;
+      const categoria = document.getElementById('categoriaProduto').value.trim();
+      const data = document.getElementById('dataProduto').value;
+
+      if(!nome || isNaN(quantidade) || !categoria || !data){
+        mostrarMensagem("⚠️ Preencha todos os campos obrigatórios!", "erro");
+        return;
+      }
+
+      const produto = { nome, quantidade, unidade, valorMedida, tipoMedida, categoria, data };
+      produtos.push(produto);
+
+      localStorage.setItem('produtos', JSON.stringify(produtos));
+      limparCampos();
+      renderizarTabela();
+      atualizarGrafico();
+      mostrarMensagem("✅ Produto adicionado!");
+    }
+
+    function limparCampos(){
+      ['nomeProduto','quantidadeProduto','categoriaProduto','valorMedida','tipoMedida','dataProduto'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('unidadeProduto').value='un';
+    }
+
+    function editarProduto(i){
+      const p = produtos[i];
+      editIndex = i;
+
+      document.getElementById('editNome').value = p.nome;
+      document.getElementById('editQuantidade').value = p.quantidade;
+      document.getElementById('editUnidade').value = p.unidade;
+      document.getElementById('editValorMedida').value = p.valorMedida;
+      document.getElementById('editTipoMedida').value = p.tipoMedida;
+      document.getElementById('editCategoria').value = p.categoria;
+      document.getElementById('editData').value = p.data;
+
+      const modal = document.getElementById('modalEdicao');
+      const box = document.getElementById('modalBox');
+      modal.classList.remove('hidden');
+      setTimeout(()=>{ box.classList.remove('scale-90','opacity-0'); box.classList.add('scale-100','opacity-100'); }, 10);
+    }
+
+    function fecharModal(){
+      const modal = document.getElementById('modalEdicao');
+      const box = document.getElementById('modalBox');
+      box.classList.add('scale-90','opacity-0');
+      box.classList.remove('scale-100','opacity-100');
+      setTimeout(()=> modal.classList.add('hidden'), 300);
+    }
+
+    function salvarEdicao(){
+      if(editIndex !== null){
+        produtos[editIndex] = {
+          nome: document.getElementById('editNome').value.trim(),
+          quantidade: parseFloat(document.getElementById('editQuantidade').value),
+          unidade: document.getElementById('editUnidade').value,
+          valorMedida: document.getElementById('editValorMedida').value,
+          tipoMedida: document.getElementById('editTipoMedida').value,
+          categoria: document.getElementById('editCategoria').value.trim(),
+          data: document.getElementById('editData').value
+        };
+
+        localStorage.setItem('produtos', JSON.stringify(produtos));
+        renderizarTabela();
+        atualizarGrafico();
+        mostrarMensagem("✏️ Produto editado!");
+        editIndex = null;
+        fecharModal();
+      }
+    }
+
+    function excluirProduto(i){
+      produtos.splice(i,1);
+      localStorage.setItem('produtos', JSON.stringify(produtos));
+      renderizarTabela();
+      atualizarGrafico();
+      mostrarMensagem("🗑️ Produto removido!");
+    }
+
+    function filtrarProdutos(){
+      const termo = document.getElementById("campoBusca").value.toLowerCase();
+      const filtrados = produtos.filter(p => 
+        p.nome.toLowerCase().includes(termo) || 
+        p.categoria.toLowerCase().includes(termo)
+      );
+      renderizarTabela(filtrados);
+    }
+
+    function ordenarPor(campo){
+      if(ordemAtual.campo === campo){
+        ordemAtual.asc = !ordemAtual.asc;
+      } else {
+        ordemAtual = { campo, asc: true };
+      }
+      produtos.sort((a,b)=>{
+        if(a[campo] < b[campo]) return ordemAtual.asc?-1:1;
+        if(a[campo] > b[campo]) return ordemAtual.asc?1:-1;
+        return 0;
+      });
+      renderizarTabela();
+    }
+
+    function renderizarTabela(lista=produtos){
+      const tbody = document.getElementById("lista-produtos");
+      tbody.innerHTML = "";
+      let total = 0;
+
+      lista.forEach((p,i)=>{
+        total += p.quantidade;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="p-3">${p.nome}</td>
+          <td class="p-3">${p.quantidade}</td>
+          <td class="p-3">${p.unidade}</td>
+          <td class="p-3">${p.valorMedida} ${p.tipoMedida}</td>
+          <td class="p-3">${p.categoria}</td>
+          <td class="p-3">${p.data}</td>
+          <td class="p-3 flex gap-2">
+            <button onclick="editarProduto(${i})" class="px-3 py-1 bg-yellow-400 hover:bg-yellow-500 rounded-lg text-white">✏️</button>
+            <button onclick="excluirProduto(${i})" class="px-3 py-1 bg-red-500 hover:bg-red-600 rounded-lg text-white">🗑️</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById("resumo").innerText = `Total de Itens: ${total}`;
+    }
+
+    function atualizarGrafico(){
+      const categorias = {};
+      produtos.forEach(p=>{
+        categorias[p.categoria] = (categorias[p.categoria]||0) + p.quantidade;
+      });
+
+      const ctx = document.getElementById("graficoEstoque").getContext("2d");
+      if(grafico) grafico.destroy();
+      grafico = new Chart(ctx,{
+        type:"bar",
+        data:{
+          labels:Object.keys(categorias),
+          datasets:[{ label:"Qtd por Categoria", data:Object.values(categorias) }]
+        }
+      });
+    }
+  </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Controle de Estoque Pessoal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="logo.png" />
+</head>
+<body class="bg-gradient-to-r from-blue-50 via-blue-100 to-blue-50 min-h-screen p-6 font-sans">
+
+  <!-- Logo -->
+  <img src="logo.png" alt="Logo" class="fixed top-4 right-4 w-16 h-16 rounded-full shadow-xl z-50 hover:scale-110 transition-transform duration-300">
+
+  <div class="max-w-7xl mx-auto bg-white shadow-2xl rounded-3xl p-8 space-y-10">
+
+    <!-- Cabeçalho -->
+    <h1 class="text-4xl md:text-5xl font-extrabold text-center text-blue-700 flex items-center justify-center gap-3 drop-shadow-md">
+      📦 Controle de Estoque Pessoal
+    </h1>
+
+    <!-- Formulário -->
+    <div class="bg-gradient-to-r from-blue-50 to-white border border-blue-200 rounded-3xl p-6 space-y-4 shadow-lg hover:shadow-2xl transition-shadow duration-300">
+      <h2 class="text-xl font-semibold text-blue-700 mb-4 tracking-wide">➕ Adicionar Produto</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4">
+        <input id="nomeProduto" class="border p-3 rounded-2xl focus:ring-2 focus:ring-blue-400" type="text" placeholder="Nome do Produto" />
+        <input id="quantidadeProduto" class="border p-3 rounded-2xl focus:ring-2 focus:ring-blue-400" type="number" placeholder="Quantidade" />
+        <select id="unidadeProduto" class="border p-3 rounded-2xl focus:ring-2 focus:ring-blue-400">
+          <option value="un">Unidade (un)</option>
+          <option value="cx">Caixa (cx)</option>
+        </select>
+        <input id="valorMedida" class="border p-3 rounded-2xl focus:ring-2 focus:ring-blue-400" type="number" placeholder="Peso/Volume" />
+        <select id="tipoMedida" class="border p-3 rounded-2xl focus:ring-2 focus:ring-blue-400">
+          <option value="">Nenhum</option>
+          <option value="kg">Kg</option>
+          <option value="g">Gramas (g)</option>
+          <option value="l">Litros (L)</option>
+          <option value="ml">Mililitros (ml)</option>
+        </select>
+        <input id="categoriaProduto" class="border p-3 rounded-2xl focus:ring-2 focus:ring-blue-400" type="text" placeholder="Categoria" />
+        <input id="dataProduto" class="border p-3 rounded-2xl focus:ring-2 focus:ring-blue-400" type="date" />
+      </div>
+      <button onclick="salvarProduto()" class="bg-blue-600 text-white rounded-2xl px-8 py-3 hover:bg-blue-700 shadow-md hover:shadow-lg transition duration-300 font-semibold w-full md:w-auto flex justify-center items-center gap-2">
+        💾 Salvar Produto
+      </button>
+    </div>
+
+    <!-- Busca -->
+    <input id="campoBusca" class="w-full border p-3 rounded-2xl shadow-md focus:ring-2 focus:ring-blue-400 placeholder:text-gray-400 mb-4" placeholder="🔍 Buscar por produto ou categoria..." oninput="filtrarProdutos()" />
+
+    <!-- Mensagem -->
+    <div id="mensagem" class="hidden text-center p-3 rounded-2xl font-medium text-lg"></div>
+
+    <!-- Tabela -->
+    <div class="overflow-x-auto border rounded-3xl shadow-xl hover:shadow-2xl transition-shadow duration-300">
+      <table id="tabelaProdutos" class="w-full mt-4 text-sm md:text-base text-left border-collapse">
+        <thead class="bg-blue-100 text-blue-700 sticky top-0 text-lg font-semibold">
+          <tr>
+            <th class="cursor-pointer p-3" onclick="ordenarPor('nome')">Produto ⬍</th>
+            <th class="cursor-pointer p-3" onclick="ordenarPor('quantidade')">Qtd ⬍</th>
+            <th class="p-3">Unidade</th>
+            <th class="p-3">Medida</th>
+            <th class="p-3">Categoria</th>
+            <th class="p-3">Data</th>
+            <th class="p-3">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="lista-produtos" class="bg-white divide-y divide-gray-200 text-gray-700 text-base"></tbody>
+      </table>
+    </div>
+
+    <!-- Totais -->
+    <div class="bg-blue-50 border border-blue-200 rounded-3xl p-5 text-right font-semibold text-gray-800 shadow-md hover:shadow-lg transition-shadow duration-300 text-lg">
+      <p id="resumo"></p>
+    </div>
+
+    <!-- Gráfico -->
+    <div class="bg-gradient-to-r from-blue-50 to-white border rounded-3xl p-6 shadow-lg hover:shadow-2xl transition-shadow duration-300">
+      <h2 class="text-xl font-semibold text-blue-700 mb-4 tracking-wide">📊 Gráfico do Estoque (Quantidade por Categoria)</h2>
+      <canvas id="graficoEstoque" height="120"></canvas>
+    </div>
+
+  </div>
+
+  <!-- Modal de Edição -->
+  <div id="modalEdicao" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div id="modalBox" class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-4xl space-y-4 transform scale-90 opacity-0 transition-all duration-300">
+      <h2 class="text-2xl font-bold text-blue-700 mb-4">✏️ Editar Produto</h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4">
+        <input id="editNome" class="border p-3 rounded-2xl" type="text" placeholder="Nome do Produto" />
+        <input id="editQuantidade" class="border p-3 rounded-2xl" type="number" placeholder="Quantidade" />
+        <select id="editUnidade" class="border p-3 rounded-2xl">
+          <option value="un">Unidade (un)</option>
+          <option value="cx">Caixa (cx)</option>
+        </select>
+        <input id="editValorMedida" class="border p-3 rounded-2xl" type="number" placeholder="Peso/Volume" />
+        <select id="editTipoMedida" class="border p-3 rounded-2xl">
+          <option value="">Nenhum</option>
+          <option value="kg">Kg</option>
+          <option value="g">Gramas (g)</option>
+          <option value="l">Litros (L)</option>
+          <option value="ml">Mililitros (ml)</option>
+        </select>
+        <input id="editCategoria" class="border p-3 rounded-2xl" type="text" placeholder="Categoria" />
+        <input id="editData" class="border p-3 rounded-2xl" type="date" />
+      </div>
+
+      <div class="flex justify-end gap-3 pt-4">
+        <button onclick="fecharModal()" class="px-5 py-2 rounded-xl bg-gray-300 hover:bg-gray-400">Cancelar</button>
+        <button onclick="salvarEdicao()" class="px-5 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rodapé -->
+  <footer class="mt-12 text-center text-gray-500 text-sm">
+    © 2025 dev Rafael Sibuya. Todos os direitos reservados
+  </footer>
+
+  <script>
+    let produtos = [];
+    let editIndex = null;
+    let grafico = null;
+    let ordemAtual = { campo: null, asc: true };
+
+    window.onload = () => {
+      const salvos = localStorage.getItem('produtos');
+      if(salvos) produtos = JSON.parse(salvos);
+      renderizarTabela();
+      atualizarGrafico();
+    };
+
+    function mostrarMensagem(texto, tipo="sucesso"){
+      const msg = document.getElementById("mensagem");
+      msg.innerText = texto;
+      msg.className = `mt-4 text-center p-3 rounded-2xl font-medium text-lg ${tipo==="erro"?"bg-red-100 text-red-700":"bg-green-100 text-green-700"}`;
+      msg.classList.remove("hidden");
+      setTimeout(()=>msg.classList.add("hidden"),3000);
+    }
+
+    function salvarProduto(){
+      const nome = document.getElementById('nomeProduto').value.trim();
+      const quantidade = parseFloat(document.getElementById('quantidadeProduto').value);
+      const unidade = document.getElementById('unidadeProduto').value;
+      const valorMedida = document.getElementById('valorMedida').value;
+      const tipoMedida = document.getElementById('tipoMedida').value;
+      const categoria = document.getElementById('categoriaProduto').value.trim();
+      const data = document.getElementById('dataProduto').value;
+
+      if(!nome || isNaN(quantidade) || !categoria || !data){
+        mostrarMensagem("⚠️ Preencha todos os campos obrigatórios!", "erro");
+        return;
+      }
+
+      const produto = { nome, quantidade, unidade, valorMedida, tipoMedida, categoria, data };
+      produtos.push(produto);
+
+      localStorage.setItem('produtos', JSON.stringify(produtos));
+      limparCampos();
+      renderizarTabela();
+      atualizarGrafico();
+      mostrarMensagem("✅ Produto adicionado!");
+    }
+
+    function limparCampos(){
+      ['nomeProduto','quantidadeProduto','categoriaProduto','valorMedida','tipoMedida','dataProduto'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('unidadeProduto').value='un';
+    }
+
+    function editarProduto(i){
+      const p = produtos[i];
+      editIndex = i;
+
+      document.getElementById('editNome').value = p.nome;
+      document.getElementById('editQuantidade').value = p.quantidade;
+      document.getElementById('editUnidade').value = p.unidade;
+      document.getElementById('editValorMedida').value = p.valorMedida;
+      document.getElementById('editTipoMedida').value = p.tipoMedida;
+      document.getElementById('editCategoria').value = p.categoria;
+      document.getElementById('editData').value = p.data;
+
+      const modal = document.getElementById('modalEdicao');
+      const box = document.getElementById('modalBox');
+      modal.classList.remove('hidden');
+      setTimeout(()=>{ box.classList.remove('scale-90','opacity-0'); box.classList.add('scale-100','opacity-100'); }, 10);
+    }
+
+    function fecharModal(){
+      const modal = document.getElementById('modalEdicao');
+      const box = document.getElementById('modalBox');
+      box.classList.add('scale-90','opacity-0');
+      box.classList.remove('scale-100','opacity-100');
+      setTimeout(()=> modal.classList.add('hidden'), 300);
+    }
+
+    function salvarEdicao(){
+      if(editIndex !== null){
+        produtos[editIndex] = {
+          nome: document.getElementById('editNome').value.trim(),
+          quantidade: parseFloat(document.getElementById('editQuantidade').value),
+          unidade: document.getElementById('editUnidade').value,
+          valorMedida: document.getElementById('editValorMedida').value,
+          tipoMedida: document.getElementById('editTipoMedida').value,
+          categoria: document.getElementById('editCategoria').value.trim(),
+          data: document.getElementById('editData').value
+        };
+
+        localStorage.setItem('produtos', JSON.stringify(produtos));
+        renderizarTabela();
+        atualizarGrafico();
+        mostrarMensagem("✏️ Produto editado!");
+        editIndex = null;
+        fecharModal();
+      }
+    }
+
+    function excluirProduto(i){
+      produtos.splice(i,1);
+      localStorage.setItem('produtos', JSON.stringify(produtos));
+      renderizarTabela();
+      atualizarGrafico();
+      mostrarMensagem("🗑️ Produto removido!");
+    }
+
+    function filtrarProdutos(){
+      const termo = document.getElementById("campoBusca").value.toLowerCase();
+      const filtrados = produtos.filter(p => 
+        p.nome.toLowerCase().includes(termo) || 
+        p.categoria.toLowerCase().includes(termo)
+      );
+      renderizarTabela(filtrados);
+    }
+
+    function ordenarPor(campo){
+      if(ordemAtual.campo === campo){
+        ordemAtual.asc = !ordemAtual.asc;
+      } else {
+        ordemAtual = { campo, asc: true };
+      }
+      produtos.sort((a,b)=>{
+        if(a[campo] < b[campo]) return ordemAtual.asc?-1:1;
+        if(a[campo] > b[campo]) return ordemAtual.asc?1:-1;
+        return 0;
+      });
+      renderizarTabela();
+    }
+
+    function renderizarTabela(lista=produtos){
+      const tbody = document.getElementById("lista-produtos");
+      tbody.innerHTML = "";
+      let total = 0;
+
+      lista.forEach((p,i)=>{
+        total += p.quantidade;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="p-3">${p.nome}</td>
+          <td class="p-3">${p.quantidade}</td>
+          <td class="p-3">${p.unidade}</td>
+          <td class="p-3">${p.valorMedida} ${p.tipoMedida}</td>
+          <td class="p-3">${p.categoria}</td>
+          <td class="p-3">${p.data}</td>
+          <td class="p-3 flex gap-2">
+            <button onclick="editarProduto(${i})" class="px-3 py-1 bg-yellow-400 hover:bg-yellow-500 rounded-lg text-white">✏️</button>
+            <button onclick="excluirProduto(${i})" class="px-3 py-1 bg-red-500 hover:bg-red-600 rounded-lg text-white">🗑️</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById("resumo").innerText = `Total de Itens: ${total}`;
+    }
+
+    function atualizarGrafico(){
+      const categorias = {};
+      produtos.forEach(p=>{
+        categorias[p.categoria] = (categorias[p.categoria]||0) + p.quantidade;
+      });
+
+      const ctx = document.getElementById("graficoEstoque").getContext("2d");
+      if(grafico) grafico.destroy();
+      grafico = new Chart(ctx,{
+        type:"bar",
+        data:{
+          labels:Object.keys(categorias),
+          datasets:[{ label:"Qtd por Categoria", data:Object.values(categorias) }]
+        }
+      });
+    }
+  </script>
+</body>
+</html>
